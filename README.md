@@ -4,12 +4,14 @@ Perseid Dashboard
 Clone and configure:
 
     $ git clone https://github.com/perseid-dashboard/perseid-dashboard.git
+    $ meteor create perseid-dashboard-tmp
     $ cp -rf perseid-dashboard-tmp/.meteor perseid-dashboard
     $ cd perseid-dashboard
     $ meteor add muicss:mui
     $ meteor add chart:chart
     $ meteor add fortawesome:fontawesome
     $ meteor add seanr:date.js
+    $ meteor remove autopublish
 
 
 Links:
