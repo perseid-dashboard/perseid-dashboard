@@ -1,0 +1,75 @@
+ <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="//fonts.googleapis.com/css?family=Roboto:300,400,400italic,500,700" rel="stylesheet" type="text/css" />
+    
+    <title>perseid-dashboard</title>
+    
+</head>
+
+<body>
+    <div class="mui-container">
+        <div class="mui-panel header">
+            <h1>Perseid // Dashboard</h1>
+        </div>
+
+        
+       
+        <div class="mui-panel">
+            <h3>Count of Calls</h3>
+            <canvas id="countOfCallsChart" width="400" height="100"></canvas>
+        </div>
+       
+        <div class="mui-panel">       
+            <h3>Last {{resentCallsLimit}} Calls</h3>
+            <ul>
+                {{#each resentCalls}}
+                    {{> oneCall}}
+                {{/each}}
+            </ul>
+        </div>
+    </div>
+    
+    {{> count_of_calls_js}}
+    
+</body>
+
+<template name="oneCall">
+    <li>
+        [{{StartTime}}] {{Method}} {{Url}}
+    </li>
+</template>
+
+
+
+
+<template name="count_of_calls_js">
+   
+   
+    <script>
+    Chart.defaults.global.responsive = true;
+    
+
+    var data = {
+        labels: ["January", "February", "March", "April", "May", "June", "July"],
+        datasets: [
+            {
+                label: "API Calls",
+                fillColor: "rgba(155,120,120,0.2)",
+                strokeColor: "rgba(255,100,100,1)",
+                pointColor: "rgba(151,187,205,1)",
+                pointStrokeColor: "#fff",
+                pointHighlightFill: "#fff",
+                pointHighlightStroke: "rgba(251,107,205,1)",
+                data: [28, 48, 40, 19, 86, 27, 90]
+            }
+        ]
+    };   
+
+    var ctx = document.getElementById("countOfCallsChart").getContext("2d");
+    var myLineChart = new Chart(ctx).Line(data);
+
+    </script>
+    
+</template>
