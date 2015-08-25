@@ -10,3 +10,9 @@ body {
     padding: 0px 15px 0px 100px; }
 .mui-panel h3 {
     margin-top: 5px; }
+.space-left {
+    margin-left: 10px; }
+.space-right {
+    margin-right: 10px; }
+#frmFilters {
+    margin-bottom: 0px; }

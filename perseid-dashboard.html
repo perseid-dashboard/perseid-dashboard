@@ -14,11 +14,11 @@
             <h1>Perseid // Dashboard</h1>
         </div>
 
-        
+        {{> filter_form}}
        
         <div class="mui-panel">
             <h3>Count of Calls</h3>
-            <canvas id="countOfCallsChart" width="400" height="100"></canvas>
+            <canvas id="countOfCallsChart" width="400" height="80"></canvas>
         </div>
        
         <div class="mui-panel">       
@@ -35,13 +35,51 @@
     
 </body>
 
-<template name="oneCall">
-    <li>
-        [{{StartTime}}] {{Method}} {{Url}}
-    </li>
+
+<template name="filter_form">
+        <div class="mui-panel filters">
+            <form class="mui-form-inline mui-form-group" id="frmFilters">
+                
+                <input type="text" class="mui-form-control" id="txtContains">
+                <label class="mui-form-floating-label" for="txtContains">
+                    Show only contains ...
+                </label>
+
+                <div class="mui-select space-left space-right">
+                    <select id="selLimit" disabled>
+                        <option {{limitOf10}}>10</option>
+                        <option {{limitOf20}}>20</option>
+                        <option {{limitOf50}}>50</option>
+                        <option {{limitOf100}}>100</option>
+                        <option {{limitOf500}}>500</option>
+                    </select>
+                </div>
+
+                <div class="mui-checkbox space-left space-right">
+                    <label>
+                        <input type="checkbox" checked="{{errorsOnly}}" id="chkErrors">
+                        Errors only
+                    </label>
+                </div>                                                                
+                
+                <!--<button class="mui-btn mui-btn-default space-left">SUBMIT</button>-->
+            </form>
+        </div>
 </template>
 
 
+<template name="oneCall">
+    <li>
+        <div class="mui-text-body1">
+            [{{StartTime}}] {{Method}} {{Url}}
+        </div>
+        {{#if Exception}}
+            <div class="mui-text-body2 mui-text-accent">
+                {{Exception.Message}}
+            </div>
+        {{/if}}
+    </li>
+</template>
 
 
 <template name="count_of_calls_js">
