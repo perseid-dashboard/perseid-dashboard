@@ -239,6 +239,14 @@ App.Client = (function(AppConst, AppSession, AppDb) {
             }
             
         });
+        
+        
+        Template.one_call.helpers(function(){
+            return {
+                localTime: function(d) { return new Date(d).toLocaleString(); }
+            };
+        }());
+        
     };
     
 }(App.Const, App.Session, App.Db));

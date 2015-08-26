@@ -25,7 +25,7 @@
             <h3>Last {{resentCallsLimit}} Calls</h3>
             <ul>
                 {{#each resentCalls}}
-                    {{> oneCall}}
+                    {{> one_call}}
                 {{/each}}
             </ul>
         </div>
@@ -68,10 +68,10 @@
 </template>
 
 
-<template name="oneCall">
+<template name="one_call">
     <li>
         <div class="mui-text-body1">
-            [{{StartTime}}] {{Method}} {{Url}}
+            [{{localTime StartTime}}] {{Method}} {{Url}}
         </div>
         {{#if Exception}}
             <div class="mui-text-body2 mui-text-accent">
