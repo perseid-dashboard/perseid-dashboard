@@ -34,14 +34,40 @@ App.Func = (function(AppConst) {
 
 App.Db = (function(AppConst, AppFunc){
     
-    function resentCalls(limit, errorsOnly) {
-        var dl = limit || AppConst.ResentCallsLimit;
-        var qry = (errorsOnly)
-            ? {"Exception":{$ne: null}}
-            : {}; 
+    function resentCalls(parms) {
+        parms = parms || {};
+        var criteria = [];
+                
+        if (parms.errorsOnly) {
+            criteria.push({"Exception":{$ne: null}});
+        }
+        
+        if (parms.regex && parms.regex !== "") {
+            var regexString = parms.regex;
+            var regexCriterion = {$or:[
+                 {"Url": {$regex: regexString}}
+                , {"HttpRequestContent": {$regex: regexString}}
+            ]};
+            criteria.push(regexCriterion);
+        }
+        
+        //And the criteria together
+        if (criteria.length > 1) {
+            qry = {$and: criteria};
+        }
+        else if (criteria.length === 1) {
+            qry = criteria[0];
+        }
+        else {
+            qry = {};
+        }
+        
+        var dl = parms.limit || AppConst.ResentCallsLimit;
         var prj = {sort: {"StartTime": -1}, limit: dl};
         
-        console.log("resentCalls(): limit="+limit+",errorsOnly="+errorsOnly);
+        console.log("recentCalls()");
+        console.log("Parameters:");
+        console.dir(parms);
         console.log("Query:");
         console.dir(qry);
         
@@ -49,7 +75,7 @@ App.Db = (function(AppConst, AppFunc){
         console.dir(prj);
         
         var res = Trace.find(qry, prj);
-        return res;
+        return res;        
     }
     
     function lastHourCalls(hours, errorsOnly) {
@@ -102,13 +128,24 @@ App.Session = (function(AppConst){
         Session.set('filter-errors-only', errorsOnly);
     }
     
+    function getRegex() {
+        var regex = Session.get('regex');
+        return regex;
+    }
+    
+    function setRegex(regex) {
+        Session.set('regex', regex);
+    }
+    
     return {
         getResentCallsLimit: getResentCallsLimit,
         setResentCallsLimit: setResentCallsLimit,
         getHoursLimit: getHoursLimit,
         setHoursLimit: setHoursLimit,
         getFilterErrorsOnly: getFilterErrorsOnly,
-        setFilterErrorsOnly: setFilterErrorsOnly
+        setFilterErrorsOnly: setFilterErrorsOnly,
+        getRegex: getRegex,
+        setRegex: setRegex
     };
     
 }(App.Const)); // Session
@@ -120,24 +157,34 @@ App.Client = (function(AppConst, AppSession, AppDb) {
         
         AppSession.setResentCallsLimit(AppConst.ResentCallsLimit);
         AppSession.setFilterErrorsOnly(AppConst.ErrorsOnly);
+        AppSession.setRegex(AppConst.Regex);
         reSubResent();
         
         function reSubResent() {
+            var regex = AppSession.getRegex();
             var limit = AppSession.getResentCallsLimit();
             var errorsOnly = AppSession.getFilterErrorsOnly();
-            console.log("Subscribe \"calls-resent\": limit="+limit+", errorsOnly="+errorsOnly);
-            Meteor.subscribe("calls-resent", limit, errorsOnly);
+            console.log("Subscribe \"calls-resent\": regex="+regex+", limit="+limit+", errorsOnly="+errorsOnly);
+            var parms = {
+                limit: limit,
+                errorsOnly: errorsOnly,
+                regex: regex
+            };
+            Meteor.subscribe("calls-resent", parms);
         }
 
         function reSubLastHour() {
             Meteor.subscribe("calls-last-hours", AppSession.getHoursLimit(), AppSession.getFilterErrorsOnly());
         }
 
-        Template.body.helpers(function() {
+        Template.body.helpers(function() {            
             function resentCalls() {
-                var limit = AppSession.getResentCallsLimit();
-                var errorsOnly = AppSession.getFilterErrorsOnly();
-                return AppDb.resentCalls(limit, errorsOnly);
+                var parms = {
+                    limit: AppSession.getResentCallsLimit(),
+                    errorsOnly: AppSession.getFilterErrorsOnly(),
+                    regex: AppSession.getRegex()
+                };
+                return AppDb.resentCalls(parms);
             }
             
             return {
@@ -161,14 +208,17 @@ App.Client = (function(AppConst, AppSession, AppDb) {
                 limitOf50:  function() { return isSelected(50); },
                 limitOf100: function() { return isSelected(100); },
                 limitOf500: function() { return isSelected(500); },
-                errorsOnly: AppSession.getFilterErrorsOnly
+                errorsOnly: AppSession.getFilterErrorsOnly,
+                regex: AppSession.getRegex
             };
         }());
         
         Template.filter_form.events({
             
             "change #selLimit": function(event) {
-                AppSession.setResentCallsLimit($(event.target).val());
+                var limitStr = $(event.target).val();
+                var limit = parseInt(limitStr);
+                AppSession.setResentCallsLimit(limit);
                 reSubResent();
             },
 
@@ -177,8 +227,14 @@ App.Client = (function(AppConst, AppSession, AppDb) {
                 reSubResent();
             },
             
+            "keyup #txtContains": function(event) {
+                AppSession.setRegex($(event.target).val());
+                reSubResent();
+            },
+            
             "submit #frmFilters": function(event) {
                 event.preventDefault();
+                AppSession.setRegex()
                 console.dir(App.Db.resentCalls());
             }
             
@@ -195,9 +251,8 @@ App.Server = (function(AppDb) {
             // code to run on server at startup
         });
 
-        Meteor.publish("calls-resent", function(limit, errorsOnly) {
-            console.log("Publish \"calls-resent\": limit="+limit+", errorsOnly="+errorsOnly);
-            return AppDb.resentCalls(limit, errorsOnly);
+        Meteor.publish("calls-resent", function(parms) {
+            return AppDb.resentCalls(parms);
         });
 
         Meteor.publish("calls-last-hours", function(hours, errorsOnly) {

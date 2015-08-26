@@ -40,13 +40,13 @@
         <div class="mui-panel filters">
             <form class="mui-form-inline mui-form-group" id="frmFilters">
                 
-                <input type="text" class="mui-form-control" id="txtContains">
+                <input type="text" class="mui-form-control" id="txtContains" value="{{regex}}" />
                 <label class="mui-form-floating-label" for="txtContains">
                     Show only contains ...
                 </label>
 
                 <div class="mui-select space-left space-right">
-                    <select id="selLimit" disabled>
+                    <select id="selLimit">
                         <option {{limitOf10}}>10</option>
                         <option {{limitOf20}}>20</option>
                         <option {{limitOf50}}>50</option>
