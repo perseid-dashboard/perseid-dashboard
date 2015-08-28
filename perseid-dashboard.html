@@ -29,6 +29,16 @@
                 {{/each}}
             </ul>
         </div>
+        
+        <div class="mui-panel">       
+            <h3>Summary</h3>
+            <ul>
+                {{#each summaryRows}}
+                    {{> summary_row}}
+                {{/each}}
+            </ul>
+        </div>
+        
     </div>
     
     {{> count_of_calls_js}}
@@ -81,6 +91,13 @@
     </li>
 </template>
 
+<template name="summary_row">
+    <li>
+        <div class="mui-text-body1">
+            [{{Count}}] {{Method}} {{Url}}
+        </div>
+    </li>
+</template>
 
 <template name="count_of_calls_js">
    

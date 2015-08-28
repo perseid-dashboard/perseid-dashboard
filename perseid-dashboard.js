@@ -65,12 +65,10 @@ App.Db = (function(AppConst, AppFunc){
         var dl = parms.limit || AppConst.ResentCallsLimit;
         var prj = {sort: {"StartTime": -1}, limit: dl};
         
-        console.log("recentCalls()");
         console.log("Parameters:");
         console.dir(parms);
         console.log("Query:");
         console.dir(qry);
-        
         console.log("Projection:");
         console.dir(prj);
         
@@ -177,7 +175,8 @@ App.Client = (function(AppConst, AppSession, AppDb) {
             Meteor.subscribe("calls-last-hours", AppSession.getHoursLimit(), AppSession.getFilterErrorsOnly());
         }
 
-        Template.body.helpers(function() {            
+        Template.body.helpers(function() {   
+            
             function resentCalls() {
                 var parms = {
                     limit: AppSession.getResentCallsLimit(),
@@ -187,9 +186,40 @@ App.Client = (function(AppConst, AppSession, AppDb) {
                 return AppDb.resentCalls(parms);
             }
             
+            function summaryRows() {
+
+                var res = [];
+                var allRows = resentCalls().map(function(r) { return r; });
+                
+                _.each(allRows, function(element, index, list) {
+                    
+                    var method = element.Method;
+                    var url = element.Url.split("?")[0];
+                    var key = method + " " + url;
+
+                    function finder(r) { return r["_id"] == key; }
+                    
+                    var row = _.find(res, finder)
+                    if (!row) {
+                        row = { 
+                                "_id": key,
+                                "Method": method,
+                                "Url": url,
+                                "Count": 0
+                            };
+                        res.push(row);
+                    }
+                    
+                    row["Count"]++;                        
+                });
+
+                return _.sortBy(res, "Count").reverse();
+            }
+            
             return {
                 resentCallsLimit: AppSession.getResentCallsLimit,
                 resentCalls: resentCalls,
+                summaryRows: summaryRows,
                 lastHourCalls: AppDb.lastHourCalls
             }
         }());
