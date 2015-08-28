@@ -16,38 +16,46 @@
 
         {{> filter_form}}
        
-        <div class="mui-panel">
+        <div class="mui-panel line-chart">
             <h3>Count of Calls</h3>
-            <canvas id="countOfCallsChart" width="400" height="80"></canvas>
+            <canvas id="lineChart" width="400" height="100"></canvas>
         </div>
-       
-        <div class="mui-panel">       
+
+        <div class="mui-panel summary">
+            <h3>Summary</h3>
+            <div class="mui-row">
+                <div class="mui-col-md-6">
+                    <ul>
+                        {{#each summaryRows}}
+                            {{> summary_row}}
+                        {{/each}}
+                    </ul>
+                </div>
+                <div class="mui-col-md-6">
+                    <canvas id="pieChart"></canvas>
+                </div>               
+            </div>
+        </div>
+              
+        <div class="mui-panel resent">       
             <h3>Last {{resentCallsLimit}} Calls</h3>
             <ul>
                 {{#each resentCalls}}
-                    {{> one_call}}
+                    {{> resent_call}}
                 {{/each}}
             </ul>
         </div>
         
-        <div class="mui-panel">       
-            <h3>Summary</h3>
-            <ul>
-                {{#each summaryRows}}
-                    {{> summary_row}}
-                {{/each}}
-            </ul>
-        </div>
         
     </div>
     
-    {{> count_of_calls_js}}
-    
+
+    {{> line_chart}}
 </body>
 
 
 <template name="filter_form">
-        <div class="mui-panel filters">
+        <div class="mui-panel filter-form">
             <form class="mui-form-inline mui-form-group" id="frmFilters">
                 
                 <input type="text" class="mui-form-control" id="txtContains" value="{{regex}}" />
@@ -87,53 +95,56 @@
 </template>
 
 
-<template name="one_call">
+<template name="resent_call">
     <li>
-        <div class="mui-text-body1">
-            [{{localTime StartTime}}] {{Method}} {{Url}}
+        <div class="mui-text-body2">
+            [{{localTime time}}] {{method}} {{url}}
         </div>
-        {{#if Exception}}
+        {{#if qs}}
+            <div class="qs">
+               ?{{qs}}
+            </div>
+        {{/if}}
+        {{#if exception}}
             <div class="mui-text-body2 mui-text-accent">
-                {{Exception.Message}}
+                {{exception.message}}
             </div>
         {{/if}}
     </li>
 </template>
 
+
+
 <template name="summary_row">
     <li>
         <div class="mui-text-body1">
-            [{{Count}}] {{Method}} {{Url}}
+            [{{getCount}}] {{method}} {{url}}
         </div>
     </li>
 </template>
 
-<template name="count_of_calls_js">
-   
-   
+
+  
+<template name="line_chart" class="line-chart">
     <script>
-    Chart.defaults.global.responsive = true;
-    
+        Chart.defaults.global.responsive = true;
+        var lineChartData = {
+            labels: ["January", "February", "March", "April", "May", "June", "July"],
+            datasets: [
+                {
+                    label: "API Calls",
+                    fillColor: "rgba(155,120,120,0.2)",
+                    strokeColor: "rgba(255,100,100,1)",
+                    pointColor: "rgba(151,187,205,1)",
+                    pointStrokeColor: "#fff",
+                    pointHighlightFill: "#fff",
+                    pointHighlightStroke: "rgba(251,107,205,1)",
+                    data: [28, 48, 40, 19, 86, 27, 90]
+                }
+            ]
+        };   
 
-    var data = {
-        labels: ["January", "February", "March", "April", "May", "June", "July"],
-        datasets: [
-            {
-                label: "API Calls",
-                fillColor: "rgba(155,120,120,0.2)",
-                strokeColor: "rgba(255,100,100,1)",
-                pointColor: "rgba(151,187,205,1)",
-                pointStrokeColor: "#fff",
-                pointHighlightFill: "#fff",
-                pointHighlightStroke: "rgba(251,107,205,1)",
-                data: [28, 48, 40, 19, 86, 27, 90]
-            }
-        ]
-    };   
-
-    var ctx = document.getElementById("countOfCallsChart").getContext("2d");
-    var myLineChart = new Chart(ctx).Line(data);
-
+        var ctx = document.getElementById("lineChart").getContext("2d");
+        var myLineChart = new Chart(ctx).Line(lineChartData);
     </script>
-    
 </template>

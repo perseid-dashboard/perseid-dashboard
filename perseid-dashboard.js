@@ -7,7 +7,7 @@ App.Const = {
 
     HoursLimit: 1,
     ResentCallsLimit: 20,
-    ErrorsOnly: true
+    ErrorsOnly: true,
     
 }; // Const
 
@@ -34,14 +34,18 @@ App.Func = (function(AppConst) {
 
 App.Db = (function(AppConst, AppFunc){
     
-    function resentCalls(parms) {
+    /*
+     * Gets the common part of the Mongo query for both resentCalls and lastCalls
+     */
+    function getQry(parms) {
         parms = parms || {};
         var criteria = [];
-                
+        var qry = {};
+        
         if (parms.errorsOnly) {
             criteria.push({"Exception":{$ne: null}});
         }
-        
+
         if (parms.regex && parms.regex !== "") {
             var regexString = parms.regex;
             var regexCriterion = {$or:[
@@ -50,7 +54,7 @@ App.Db = (function(AppConst, AppFunc){
             ]};
             criteria.push(regexCriterion);
         }
-		
+
 		if (parms.verb) {
             var verbCriterion = {"Method": parms.verb};
             criteria.push(verbCriterion);
@@ -67,14 +71,22 @@ App.Db = (function(AppConst, AppFunc){
             qry = {};
         }
         
+        return qry;
+    }
+    
+    
+    function resentCalls(parms) {
+        parms = parms || {};
+        var qry = getQry(parms);
+        
         var dl = parms.limit || AppConst.ResentCallsLimit;
         var prj = {sort: {"StartTime": -1}, limit: dl};
         
-        console.log("Parameters:");
+        console.log("--[Parameters]--");
         console.dir(parms);
-        console.log("Query:");
+        console.log("--[Query]--");
         console.dir(qry);
-        console.log("Projection:");
+        console.log("--[Projection]--");
         console.dir(prj);
         
         var res = Trace.find(qry, prj);
@@ -163,14 +175,25 @@ App.Session = (function(AppConst){
     
 }(App.Const)); // Session
 
-
 App.Client = (function(AppConst, AppSession, AppDb) {
 
+    var pieChart = null;
+    var pieMaxSegments = 7;
+    var pieColors = [
+        { color:"rgb(255,   0,   0)", highlight: "rgba(255, 0, 0, 0.5)", },
+        { color:"rgb(245,  40,  40)", highlight: "rgba(245, 0, 0, 0.5)", },
+        { color:"rgb(235,  80,  80)", highlight: "rgba(235, 0, 0, 0.5)", },
+        { color:"rgb(225, 120, 120)", highlight: "rgba(225, 0, 0, 0.5)", },
+        { color:"rgb(215, 140, 140)", highlight: "rgba(215, 0, 0, 0.5)", },
+        { color:"rgb(205, 160, 160)", highlight: "rgba(205, 0, 0, 0.5)", },
+        { color:"rgb(195, 180, 180)", highlight: "rgba(195, 0, 0, 0.5)", },
+    ];
+    
+    
     return function() {
         
         AppSession.setResentCallsLimit(AppConst.ResentCallsLimit);
         AppSession.setFilterErrorsOnly(AppConst.ErrorsOnly);
-        AppSession.setRegex(AppConst.Regex);
         reSubResent();
         
         function reSubResent() {
@@ -194,6 +217,25 @@ App.Client = (function(AppConst, AppSession, AppDb) {
 
         Template.body.helpers(function() {   
             
+            function ApiCall(o) {
+                
+                this.time = o.StartTime;
+                this.method = o.Method;
+
+                var urlParts = o.Url.split("?");
+                this.url = urlParts[0];
+                this.qs = (urlParts.length > 1) 
+                    ? urlParts[1] 
+                    : null;
+                
+                this.exception = (o.Exception)
+                    ? {
+                        message: o.Exception.Message
+                    } : null;
+                
+                this.command = this.method + " " + this.url;
+            }
+            
             function resentCalls() {
                 var parms = {
                     limit: AppSession.getResentCallsLimit(),
@@ -201,37 +243,96 @@ App.Client = (function(AppConst, AppSession, AppDb) {
                     regex: AppSession.getRegex(),
 					verb: AppSession.getVerb()
                 };
-                return AppDb.resentCalls(parms);
+                var res = AppDb.resentCalls(parms).map(function(o) { return new ApiCall(o); });;
+                return res;
+            }
+            
+            function SummaryRow(o) {
+                var _count = 0;
+                
+                this.command = o.command;
+                this.method = o.method;
+                this.url = o.url;
+                
+                this.getCount= function() { return _count; };
+                this.increment = function() { _count++; };
+
+                this.same = function(other) { 
+                    return this.command == other.command;
+                };
+            }
+            
+            function drawPieChart(rows) {
+                
+                if (pieChart == null) {
+                    var el = document.getElementById("pieChart");
+                    if (!el) { return; }
+                    
+                    var ctx = el.getContext("2d");
+                    if (!ctx) { return; }
+                    
+                    pieChart = new Chart(ctx);
+                }
+                
+                Chart.defaults.global.responsive = true;
+                
+                var sumAll = _.reduce(rows, function(memo, row){ return memo + row.getCount(); }, 0);
+                var sumCurr = 0
+                    ,pieChartData = [];
+
+                if (sumAll > 0) {
+                    for(var i=0, len=rows.length; i<len; i++) {
+                        
+                        var row = rows[i];
+                        var colors = pieColors[i];
+                        
+                        if (i >= pieMaxSegments || sumCurr/sumAll > 0.9 || row.getCount()/sumAll < 0.1) {
+                            pieChartData.push({
+                                value: sumAll - sumCurr, 
+                                label: "Other",
+                                color: colors.color,
+                                highlight: colors.highlight,
+                            });
+                            break;
+                        }
+                        
+                        
+                        pieChartData.push({
+                            value: row.getCount(), 
+                            label: i + 1,
+                            color: colors.color,
+                            highlight: colors.highlight,
+                        });
+                        
+                        sumCurr += row.getCount();
+                    }
+                }
+                pieChart.Pie(pieChartData, {animationSteps : 10});
             }
             
             function summaryRows() {
 
                 var res = [];
-                var allRows = resentCalls().map(function(r) { return r; });
+                var allRows = resentCalls();
                 
-                _.each(allRows, function(element, index, list) {
-                    
-                    var method = element.Method;
-                    var url = element.Url.split("?")[0];
-                    var key = method + " " + url;
+                _.each(allRows, function(apiCall, index, list) {
+                    var summaryRow = new SummaryRow(apiCall);
 
-                    function finder(r) { return r["_id"] == key; }
+                    function finder(r) { return r.same(key); }
                     
-                    var row = _.find(res, finder)
+                    var row = _.find(res, function(r) { return r.same(summaryRow) });
                     if (!row) {
-                        row = { 
-                                "_id": key,
-                                "Method": method,
-                                "Url": url,
-                                "Count": 0
-                            };
+                        row = summaryRow;
                         res.push(row);
                     }
-                    
-                    row["Count"]++;                        
+
+                    row.increment();
                 });
 
-                return _.sortBy(res, "Count").reverse();
+                var res = _.sortBy(res, function(r){ return r.getCount(); }).reverse();
+                drawPieChart(res);
+                
+                return res;
             }
             
             return {
@@ -248,14 +349,23 @@ App.Client = (function(AppConst, AppSession, AppDb) {
 
         Template.filter_form.helpers(function(){
             function limit() { return AppSession.getResentCallsLimit(); }
-            function isSelected(n) { return limit() == n ? "selected" : ""; }
+            function verb() { var verb = AppSession.getVerb(); }
+            function isSelected(f, v) { return f() == v ? "selected" : ""; }
             return {
-                limit: limit,
-                limitOf10:  function() { return isSelected(10); },
-                limitOf20:  function() { return isSelected(20); },
-                limitOf50:  function() { return isSelected(50); },
-                limitOf100: function() { return isSelected(100); },
-                limitOf500: function() { return isSelected(500); },
+                limit: limit,  
+                verb: verb,
+                
+                limitOf10:  function() { return isSelected(limit, 10);    },
+                limitOf20:  function() { return isSelected(limit, 20);    },
+                limitOf50:  function() { return isSelected(limit, 50);    },
+                limitOf100: function() { return isSelected(limit, 100);   },
+                limitOf500: function() { return isSelected(limit, 500);   },
+                
+                verbAny:    function() { return isSelected(verb, "Any");  },
+                verbGet:    function() { return isSelected(verb, "GET");  },
+                verbPost:   function() { return isSelected(verb, "POST"); },
+                verbPut:    function() { return isSelected(verb, "PUT");  },
+                
                 errorsOnly: AppSession.getFilterErrorsOnly,
                 regex: AppSession.getRegex
             };
@@ -298,7 +408,7 @@ App.Client = (function(AppConst, AppSession, AppDb) {
         });
         
         
-        Template.one_call.helpers(function(){
+        Template.resent_call.helpers(function(){
             return {
                 localTime: function(d) { return new Date(d).toLocaleString(); }
             };
