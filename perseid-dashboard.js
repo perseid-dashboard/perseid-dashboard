@@ -307,7 +307,7 @@ App.Client = (function(AppConst, AppSession, AppDb) {
                         sumCurr += row.getCount();
                     }
                 }
-                pieChart.Pie(pieChartData, {animationSteps : 10});
+                pieChart.Pie(pieChartData, {animationSteps : 1});
             }
             
             function summaryRows() {
