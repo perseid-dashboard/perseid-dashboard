@@ -44,7 +44,16 @@
                 <label class="mui-form-floating-label" for="txtContains">
                     Show only contains ...
                 </label>
-
+				
+                <div class="mui-select space-left space-right">
+                    <select id="selVerb">
+                        <option {{verbAny}}>Any</option>
+                        <option {{verbGet}}>GET</option>
+                        <option {{verbPost}}>POST</option>
+                        <option {{verbPut}}>PUT</option>
+                    </select>
+                </div>
+				
                 <div class="mui-select space-left space-right">
                     <select id="selLimit">
                         <option {{limitOf10}}>10</option>
