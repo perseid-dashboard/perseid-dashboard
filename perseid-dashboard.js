@@ -50,6 +50,11 @@ App.Db = (function(AppConst, AppFunc){
             ]};
             criteria.push(regexCriterion);
         }
+		
+		if (parms.verb) {
+            var verbCriterion = {"Method": parms.verb};
+            criteria.push(verbCriterion);
+		}
         
         //And the criteria together
         if (criteria.length > 1) {
@@ -105,7 +110,6 @@ App.Session = (function(AppConst){
         var dl = limit || AppConst.ResentCallsLimit;
         Session.set('calls-resent-limit', dl);
     }
-    
 
     function getHoursLimit() {
         var res = Session.get('calls-hours-limit') || AppConst.HoursLimit;
@@ -116,6 +120,15 @@ App.Session = (function(AppConst){
         var hl = hours || AppConst.HoursLimit;
         Session.set('calls-hours-limit', hl);
     }
+	
+	function getVerb() {
+		var verb = Session.get('verb');
+		return verb;
+	}
+	
+	function setVerb(verb) {
+		Session.set('verb', verb);
+	}
     
     function getFilterErrorsOnly() {
         var res = Session.get('filter-errors-only') || false;
@@ -140,6 +153,8 @@ App.Session = (function(AppConst){
         setResentCallsLimit: setResentCallsLimit,
         getHoursLimit: getHoursLimit,
         setHoursLimit: setHoursLimit,
+		getVerb: getVerb,
+		setVerb: setVerb,
         getFilterErrorsOnly: getFilterErrorsOnly,
         setFilterErrorsOnly: setFilterErrorsOnly,
         getRegex: getRegex,
@@ -160,13 +175,15 @@ App.Client = (function(AppConst, AppSession, AppDb) {
         
         function reSubResent() {
             var regex = AppSession.getRegex();
+			var verb = AppSession.getVerb();
             var limit = AppSession.getResentCallsLimit();
             var errorsOnly = AppSession.getFilterErrorsOnly();
-            console.log("Subscribe \"calls-resent\": regex="+regex+", limit="+limit+", errorsOnly="+errorsOnly);
+            console.log("Subscribe \"calls-resent\": regex="+regex+", verb:"+verb+", limit="+limit+", errorsOnly="+errorsOnly);
             var parms = {
                 limit: limit,
                 errorsOnly: errorsOnly,
-                regex: regex
+                regex: regex,
+				verb: verb
             };
             Meteor.subscribe("calls-resent", parms);
         }
@@ -181,7 +198,8 @@ App.Client = (function(AppConst, AppSession, AppDb) {
                 var parms = {
                     limit: AppSession.getResentCallsLimit(),
                     errorsOnly: AppSession.getFilterErrorsOnly(),
-                    regex: AppSession.getRegex()
+                    regex: AppSession.getRegex(),
+					verb: AppSession.getVerb()
                 };
                 return AppDb.resentCalls(parms);
             }
@@ -244,6 +262,15 @@ App.Client = (function(AppConst, AppSession, AppDb) {
         }());
         
         Template.filter_form.events({
+		
+			"change #selVerb": function(event) {
+				var verb = $(event.target).val();
+				if (verb === "Any") {
+					verb = null;
+				}
+				AppSession.setVerb(verb);
+                reSubResent();
+			},
             
             "change #selLimit": function(event) {
                 var limitStr = $(event.target).val();
