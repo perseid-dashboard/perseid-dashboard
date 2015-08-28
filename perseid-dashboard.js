@@ -7,7 +7,7 @@ App.Const = {
 
     HoursLimit: 1,
     ResentCallsLimit: 20,
-    ErrorsOnly: true,
+    ErrorsOnly: false,
     
 }; // Const
 
@@ -92,7 +92,7 @@ App.Db = (function(AppConst, AppFunc){
         var res = Trace.find(qry, prj);
         return res;        
     }
-    
+
     function lastHourCalls(hours, errorsOnly) {
         var isoDate = AppFunc.isoDateAddHours(hours);
         var qry = (errorsOnly)
@@ -180,13 +180,14 @@ App.Client = (function(AppConst, AppSession, AppDb) {
     var pieChart = null;
     var pieMaxSegments = 7;
     var pieColors = [
-        { color:"rgb(255,   0,   0)", highlight: "rgba(255, 0, 0, 0.5)", },
-        { color:"rgb(245,  40,  40)", highlight: "rgba(245, 0, 0, 0.5)", },
-        { color:"rgb(235,  80,  80)", highlight: "rgba(235, 0, 0, 0.5)", },
-        { color:"rgb(225, 120, 120)", highlight: "rgba(225, 0, 0, 0.5)", },
-        { color:"rgb(215, 140, 140)", highlight: "rgba(215, 0, 0, 0.5)", },
-        { color:"rgb(205, 160, 160)", highlight: "rgba(205, 0, 0, 0.5)", },
-        { color:"rgb(195, 180, 180)", highlight: "rgba(195, 0, 0, 0.5)", },
+        { color: "rgb(255,   0,   0)", highlight: "rgba(255, 0, 0, 0.5)", },
+        { color: "rgb(245,  40,  40)", highlight: "rgba(245, 0, 0, 0.5)", },
+        { color: "rgb(235,  80,  80)", highlight: "rgba(235, 0, 0, 0.5)", },
+        { color: "rgb(225, 120, 120)", highlight: "rgba(225, 0, 0, 0.5)", },
+        { color: "rgb(215, 140, 140)", highlight: "rgba(215, 0, 0, 0.5)", },
+        { color: "rgb(205, 160, 160)", highlight: "rgba(205, 0, 0, 0.5)", },
+        { color: "rgb(195, 180, 180)", highlight: "rgba(195, 0, 0, 0.5)", },
+        { color: "rgb(185, 200, 200)", highlight: "rgba(185, 0, 0, 0.5)", },
     ];
     
     
@@ -264,16 +265,6 @@ App.Client = (function(AppConst, AppSession, AppDb) {
             
             function drawPieChart(rows) {
                 
-                if (pieChart == null) {
-                    var el = document.getElementById("pieChart");
-                    if (!el) { return; }
-                    
-                    var ctx = el.getContext("2d");
-                    if (!ctx) { return; }
-                    
-                    pieChart = new Chart(ctx);
-                }
-                
                 Chart.defaults.global.responsive = true;
                 
                 var sumAll = _.reduce(rows, function(memo, row){ return memo + row.getCount(); }, 0);
@@ -285,7 +276,6 @@ App.Client = (function(AppConst, AppSession, AppDb) {
                         
                         var row = rows[i];
                         var colors = pieColors[i];
-                        
                         if (i >= pieMaxSegments || sumCurr/sumAll > 0.9 || row.getCount()/sumAll < 0.1) {
                             pieChartData.push({
                                 value: sumAll - sumCurr, 
@@ -307,7 +297,19 @@ App.Client = (function(AppConst, AppSession, AppDb) {
                         sumCurr += row.getCount();
                     }
                 }
-                pieChart.Pie(pieChartData, {animationSteps : 1});
+                
+                if (pieChart != null) {
+                    pieChart.destroy();
+                    pieChart = null;
+                }
+                
+                var el = document.getElementById("pieChart");
+                if (!el) { return; }
+
+                var ctx = el.getContext("2d");
+                if (!ctx) { return; }
+
+                pieChart = new Chart(ctx).Pie(pieChartData, {animationSteps : 1});
             }
             
             function summaryRows() {
