@@ -380,7 +380,7 @@ App.Client = (function(AppConst, AppSession, AppDb) {
                 
                 Chart.defaults.global.responsive = true;
                 var lineChartData = {
-                    labels: ["10min", "9min", "8min", "7min", "6min", "5min", "4min", "3min", "2min", "1min"],
+                    labels: ["9min", "8min", "7min", "6min", "5min", "4min", "3min", "2min", "1min", "now"],
                     datasets: [
                         {
                             label: "Count of API Calls",
@@ -485,7 +485,7 @@ App.Client = (function(AppConst, AppSession, AppDb) {
             function showLastRows() {
                 var lastRows = getLastRows();
                 drawLineChart(lastRows);
-                setTimeout(showLastRows,10000);
+                setTimeout(showLastRows, 5000);
             }
             
             setTimeout(showLastRows, 3000);

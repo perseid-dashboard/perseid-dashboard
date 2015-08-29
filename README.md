@@ -11,8 +11,11 @@ Clone and configure:
     $ meteor add chart:chart
     $ meteor add fortawesome:fontawesome
     $ meteor add seanr:date.js
+    $ meteor add meteorhacks:aggregate
     $ meteor remove autopublish
-    $ bash run.sh  >> meteor.log 2>&1 &
+    ...
+    $ git pull
+    $ run.sh
 
 Links:
 

@@ -30,6 +30,11 @@ body {
     margin-left: 10px;
 }
 
+.foo {
+    text-color: #F7464A;
+    background-color: #FF5AAE;
+}
+
 @media (max-width: 768px) {
     .filter-form .space-left, .filter_form .space-right {
         margin-left: 0px;
