@@ -17,12 +17,12 @@
         {{> filter_form}}
        
         <div class="mui-panel line-chart">
-            <h3>Count of Calls</h3>
+            <h3>Count of API Calls (last {{minutesLimit}} minutes)</h3>
             <canvas id="lineChart" width="400" height="100"></canvas>
         </div>
 
         <div class="mui-panel summary">
-            <h3>Summary</h3>
+            <h3>Summary: Most Resent {{resentCallsLimit}} Calls</h3>
             <div class="mui-row">
                 <div class="mui-col-md-6">
                     <ul>
@@ -38,7 +38,7 @@
         </div>
               
         <div class="mui-panel resent">       
-            <h3>Last {{resentCallsLimit}} Calls</h3>
+            <h3>List: Most Resent {{resentCallsLimit}} Calls</h3>
             <ul>
                 {{#each resentCalls}}
                     {{> resent_call}}
@@ -46,11 +46,8 @@
             </ul>
         </div>
         
-        
     </div>
     
-
-    {{> line_chart}}
 </body>
 
 
@@ -95,6 +92,18 @@
 </template>
 
 
+
+<template name="summary_row">
+    <li>
+        <div class="mui-text-body1">
+            <div>[{{getCount}} calls, {{getTotalTime}}ms total, {{getAvgTime}}ms avg]</div>
+            <div>{{method}}&nbsp;{{url}}</div>
+        </div>
+    </li>
+</template>
+
+
+
 <template name="resent_call">
     <li>
         <div class="mui-text-body2">
@@ -115,36 +124,4 @@
 
 
 
-<template name="summary_row">
-    <li>
-        <div class="mui-text-body1">
-            [{{getCount}}] {{method}} {{url}}
-        </div>
-    </li>
-</template>
-
-
   
-<template name="line_chart" class="line-chart">
-    <script>
-        Chart.defaults.global.responsive = true;
-        var lineChartData = {
-            labels: ["January", "February", "March", "April", "May", "June", "July"],
-            datasets: [
-                {
-                    label: "API Calls",
-                    fillColor: "rgba(155,120,120,0.2)",
-                    strokeColor: "rgba(255,100,100,1)",
-                    pointColor: "rgba(151,187,205,1)",
-                    pointStrokeColor: "#fff",
-                    pointHighlightFill: "#fff",
-                    pointHighlightStroke: "rgba(251,107,205,1)",
-                    data: [28, 48, 40, 19, 86, 27, 90]
-                }
-            ]
-        };   
-
-        var ctx = document.getElementById("lineChart").getContext("2d");
-        var myLineChart = new Chart(ctx).Line(lineChartData);
-    </script>
-</template>

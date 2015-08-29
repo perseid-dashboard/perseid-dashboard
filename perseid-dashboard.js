@@ -5,7 +5,7 @@ var App = {};
 
 App.Const = {
 
-    HoursLimit: 1,
+    MinutesLimit: 10,
     ResentCallsLimit: 20,
     ErrorsOnly: false,
     
@@ -14,53 +14,62 @@ App.Const = {
 
 App.Func = (function(AppConst) {
     
-    function dateAddHours(hours) {
-        var hl = hours || AppConst.HoursLimit;
-        var res = Date.today().addHours(-1 * hl);
+    function dateAddMinutes(minutes) {
+        var ml = minutes || AppConst.MinutesLimit;
+        var res = Date.now().addMinutes(ml);
         return res;
     }
     
-    function isoDateAddHours(hours) {
-        return dateAddHours(hours).toISOString();
+    function isoDateAddMinutes(minutes) {
+        return dateAddMinutes(minutes).toISOString();
     }
     
     return {
-        dateAddHours: dateAddHours,
-        isoDateAddHours: isoDateAddHours
+        dateAddMinutes: dateAddMinutes,
+        isoDateAddMinutes: isoDateAddMinutes
     };
     
 }(App.Const)); // Func
 
 
 App.Db = (function(AppConst, AppFunc){
-    
-    /*
-     * Gets the common part of the Mongo query for both resentCalls and lastCalls
-     */
-    function getQry(parms) {
-        parms = parms || {};
-        var criteria = [];
-        var qry = {};
-        
-        if (parms.errorsOnly) {
-            criteria.push({"Exception":{$ne: null}});
-        }
 
+    function getErrorsOnlyCriteria(parms, criteria) {
+        if (parms.errorsOnly) {
+            var criterion = {"Exception":{$ne: null}};
+            criteria.push(criterion);
+        }
+    }
+    
+    function getRegexCriteria(parms, criteria) {
         if (parms.regex && parms.regex !== "") {
             var regexString = parms.regex;
-            var regexCriterion = {$or:[
+            var criterion = {$or:[
                  {"Url": {$regex: regexString}}
                 , {"HttpRequestContent": {$regex: regexString}}
             ]};
-            criteria.push(regexCriterion);
+            criteria.push(criterion);
         }
-
+    }
+    
+    function getVerbCriteria(parms, criteria) {
 		if (parms.verb) {
-            var verbCriterion = {"Method": parms.verb};
-            criteria.push(verbCriterion);
+            var criterion = {"Method": parms.verb};
+            criteria.push(criterion);
 		}
+    }
+    
+    function getMinutesCriteria(parms, criteria) {
+        if (parms.minutes) {
+            var isoDate = AppFunc.isoDateAddMinutes(-1 * parms.minutes);
+            var criterion = {"StartTime":{$gt: isoDate}};
+            criteria.push(criterion);
+        }
+    }
+    
+    function getCriteriaToQry(criteria) {
+        var qry = {};
         
-        //And the criteria together
         if (criteria.length > 1) {
             qry = {$and: criteria};
         }
@@ -74,38 +83,68 @@ App.Db = (function(AppConst, AppFunc){
         return qry;
     }
     
+    function getQryResentCalls(parms) {
+        parms = parms || {};
+        var criteria = [];
+        
+        getErrorsOnlyCriteria(parms, criteria);
+        getRegexCriteria(parms, criteria);
+        getVerbCriteria(parms, criteria);
+        
+        //And the criteria together
+        var qry = getCriteriaToQry(criteria);
+        return qry;
+    }
+    
     
     function resentCalls(parms) {
         parms = parms || {};
-        var qry = getQry(parms);
+        var qry = getQryResentCalls(parms);
         
         var dl = parms.limit || AppConst.ResentCallsLimit;
         var prj = {sort: {"StartTime": -1}, limit: dl};
         
-        console.log("--[Parameters]--");
-        console.dir(parms);
-        console.log("--[Query]--");
-        console.dir(qry);
-        console.log("--[Projection]--");
-        console.dir(prj);
+        console.log("==[resentCalls]==");
+        console.log("--[Parameters]--"); console.dir(parms);
+        console.log("--[Query]--"); console.dir(qry);
+        console.log("--[Projection]--"); console.dir(prj);
         
         var res = Trace.find(qry, prj);
         return res;        
     }
 
-    function lastHourCalls(hours, errorsOnly) {
-        var isoDate = AppFunc.isoDateAddHours(hours);
-        var qry = (errorsOnly)
-            ? {"Exception":{$ne: null}, "StartTime":{$gt: isoDate}}
-            : {"StartTime":{$gt: isoDate}}; 
+    function getQryLastCalls(parms) {
+        parms = parms || {};
+        var criteria = [];
+        getErrorsOnlyCriteria(parms, criteria);
+        getRegexCriteria(parms, criteria);
+        getVerbCriteria(parms, criteria);
+        getMinutesCriteria(parms, criteria);
+        
+        //And the criteria together
+        var qry = getCriteriaToQry(criteria);
+        return qry;
+    }
+    
+    
+    function lastCalls(parms) {
+        parms = parms || {};
+        var qry = getQryLastCalls(parms);
+        
         var prj = {sort: {"StartTime": -1}};
+        
+        console.log("==[lastCalls]==");
+        console.log("--[Parameters]--"); console.dir(parms);
+        console.log("--[Query]--"); console.dir(qry);
+        console.log("--[Projection]--"); console.dir(prj);
+        
         var res = Trace.find(qry, prj);
-        return res;
+        return res;        
     }
     
     return {
         resentCalls: resentCalls,
-        lastHourCalls: lastHourCalls
+        lastCalls: lastCalls
     };
     
 }(App.Const, App.Func)); // Db
@@ -123,14 +162,14 @@ App.Session = (function(AppConst){
         Session.set('calls-resent-limit', dl);
     }
 
-    function getHoursLimit() {
-        var res = Session.get('calls-hours-limit') || AppConst.HoursLimit;
+    function getMinutesLimit() {
+        var res = Session.get('calls-minutes-limit') || AppConst.MinutesLimit;
         return res;
     }
     
-    function setHoursLimit(hours) {
-        var hl = hours || AppConst.HoursLimit;
-        Session.set('calls-hours-limit', hl);
+    function setMinutesLimit(minutes) {
+        var hl = minutes || AppConst.MinutesLimit;
+        Session.set('calls-minutes-limit', hl);
     }
 	
 	function getVerb() {
@@ -163,8 +202,8 @@ App.Session = (function(AppConst){
     return {
         getResentCallsLimit: getResentCallsLimit,
         setResentCallsLimit: setResentCallsLimit,
-        getHoursLimit: getHoursLimit,
-        setHoursLimit: setHoursLimit,
+        getMinutesLimit: getMinutesLimit,
+        setMinutesLimit: setMinutesLimit,
 		getVerb: getVerb,
 		setVerb: setVerb,
         getFilterErrorsOnly: getFilterErrorsOnly,
@@ -191,29 +230,33 @@ App.Client = (function(AppConst, AppSession, AppDb) {
     ];
     
     
+    var lineChart = null;
+    
     return function() {
         
         AppSession.setResentCallsLimit(AppConst.ResentCallsLimit);
         AppSession.setFilterErrorsOnly(AppConst.ErrorsOnly);
         reSubResent();
+        reSubLast();
         
         function reSubResent() {
-            var regex = AppSession.getRegex();
-			var verb = AppSession.getVerb();
-            var limit = AppSession.getResentCallsLimit();
-            var errorsOnly = AppSession.getFilterErrorsOnly();
-            console.log("Subscribe \"calls-resent\": regex="+regex+", verb:"+verb+", limit="+limit+", errorsOnly="+errorsOnly);
             var parms = {
-                limit: limit,
-                errorsOnly: errorsOnly,
-                regex: regex,
-				verb: verb
+                regex: AppSession.getRegex(),
+				verb: AppSession.getVerb(),
+                errorsOnly: AppSession.getFilterErrorsOnly(),
+                limit: AppSession.getResentCallsLimit()
             };
             Meteor.subscribe("calls-resent", parms);
         }
 
-        function reSubLastHour() {
-            Meteor.subscribe("calls-last-hours", AppSession.getHoursLimit(), AppSession.getFilterErrorsOnly());
+        function reSubLast() {
+            var parms = {
+                regex: AppSession.getRegex(),
+				verb: AppSession.getVerb(),
+                errorsOnly: AppSession.getFilterErrorsOnly(),
+                minutes: AppSession.getMinutesLimit()
+            };
+            Meteor.subscribe("calls-last", parms);
         }
 
         Template.body.helpers(function() {   
@@ -222,6 +265,7 @@ App.Client = (function(AppConst, AppSession, AppDb) {
                 
                 this.time = o.StartTime;
                 this.method = o.Method;
+                this.ms = o.TotalTime;
 
                 var urlParts = o.Url.split("?");
                 this.url = urlParts[0];
@@ -239,17 +283,30 @@ App.Client = (function(AppConst, AppSession, AppDb) {
             
             function resentCalls() {
                 var parms = {
-                    limit: AppSession.getResentCallsLimit(),
-                    errorsOnly: AppSession.getFilterErrorsOnly(),
                     regex: AppSession.getRegex(),
-					verb: AppSession.getVerb()
+					verb: AppSession.getVerb(),
+                    errorsOnly: AppSession.getFilterErrorsOnly(),
+                    limit: AppSession.getResentCallsLimit()
                 };
+                
                 var res = AppDb.resentCalls(parms).map(function(o) { return new ApiCall(o); });;
+                return res;
+            }
+            
+            function lastCalls() {
+                var parms = {
+                    regex: AppSession.getRegex(),
+					verb: AppSession.getVerb(),
+                    errorsOnly: AppSession.getFilterErrorsOnly(),
+                    minutes: AppSession.getMinutesLimit()
+                };
+                var res = AppDb.lastCalls(parms).map(function(o) { return new ApiCall(o); });
                 return res;
             }
             
             function SummaryRow(o) {
                 var _count = 0;
+                var _totalTime = 0;
                 
                 this.command = o.command;
                 this.method = o.method;
@@ -257,6 +314,11 @@ App.Client = (function(AppConst, AppSession, AppDb) {
                 
                 this.getCount= function() { return _count; };
                 this.increment = function() { _count++; };
+                
+                this.getTotalTime = function() { return Math.floor(_totalTime); };
+                this.getAvgTime = function() { return Math.floor((_count<=0) ? 0 : _totalTime / _count); };
+                this.addTime = function(t) { _totalTime += t; };
+                
 
                 this.same = function(other) { 
                     return this.command == other.command;
@@ -289,7 +351,7 @@ App.Client = (function(AppConst, AppSession, AppDb) {
                         
                         pieChartData.push({
                             value: row.getCount(), 
-                            label: i + 1,
+                            label: row.command,
                             color: colors.color,
                             highlight: colors.highlight,
                         });
@@ -312,6 +374,42 @@ App.Client = (function(AppConst, AppSession, AppDb) {
                 pieChart = new Chart(ctx).Pie(pieChartData, {animationSteps : 1});
             }
             
+            
+            function drawLineChart(rows) {
+                var data = _.map(rows, function(r) { return r.count; });
+                
+                Chart.defaults.global.responsive = true;
+                var lineChartData = {
+                    labels: ["10min", "9min", "8min", "7min", "6min", "5min", "4min", "3min", "2min", "1min"],
+                    datasets: [
+                        {
+                            label: "Count of API Calls",
+                            fillColor: "rgba(155,120,120,0.2)",
+                            strokeColor: "rgba(255,100,100,1)",
+                            pointColor: "rgba(151,187,205,1)",
+                            pointStrokeColor: "#fff",
+                            pointHighlightFill: "#fff",
+                            pointHighlightStroke: "rgba(251,107,205,1)",
+                            data: data
+                        }
+                    ]
+                };   
+
+                if (lineChart != null) {
+                    lineChart.destroy();
+                    lineChart = null;
+                }
+
+                var el = document.getElementById("lineChart");
+                if (!el) { return; }
+
+                var ctx = el.getContext("2d");
+                if (!ctx) { return; }
+                
+                lineChart = new Chart(ctx).Line(lineChartData, {animationSteps : 1});
+                
+            }
+            
             function summaryRows() {
 
                 var res = [];
@@ -329,19 +427,74 @@ App.Client = (function(AppConst, AppSession, AppDb) {
                     }
 
                     row.increment();
+                    row.addTime(apiCall.ms);
                 });
 
                 var res = _.sortBy(res, function(r){ return r.getCount(); }).reverse();
+                
                 drawPieChart(res);
                 
                 return res;
             }
             
+            
+            function getLastRows() {
+
+                var allRows= lastCalls();
+                var currentDate = Date.now();
+                var times = [
+                    new Date(currentDate.getTime() - (10 * 60 * 1000)).toISOString(),
+                    new Date(currentDate.getTime() - ( 9 * 60 * 1000)).toISOString(),
+                    new Date(currentDate.getTime() - ( 8 * 60 * 1000)).toISOString(),
+                    new Date(currentDate.getTime() - ( 7 * 60 * 1000)).toISOString(),
+                    new Date(currentDate.getTime() - ( 6 * 60 * 1000)).toISOString(),
+                    new Date(currentDate.getTime() - ( 5 * 60 * 1000)).toISOString(),
+                    new Date(currentDate.getTime() - ( 4 * 60 * 1000)).toISOString(),
+                    new Date(currentDate.getTime() - ( 3 * 60 * 1000)).toISOString(),
+                    new Date(currentDate.getTime() - ( 2 * 60 * 1000)).toISOString(),
+                    new Date(currentDate.getTime() + (10 * 60 * 1000)).toISOString()
+                ];
+                
+                var res = [
+                    {"minute": 10, "count": 0},
+                    {"minute":  9, "count": 0},
+                    {"minute":  8, "count": 0},
+                    {"minute":  7, "count": 0},
+                    {"minute":  6, "count": 0},
+                    {"minute":  5, "count": 0},
+                    {"minute":  4, "count": 0},
+                    {"minute":  3, "count": 0},
+                    {"minute":  2, "count": 0},
+                    {"minute":  1, "count": 0}
+                ];
+                _.each(allRows, function(apiCall, index, list) {
+                    if (!apiCall.time) { return; }
+                    var apiDt = new Date(apiCall.time).toISOString();
+                    for (var i=0; i<10; i++) {
+                        var tDt = times[i];
+                        if (apiDt <= tDt) {
+                            res[i].count++;
+                            break;
+                        }
+                    }
+                });
+                
+                return res;
+            }
+            
+            function showLastRows() {
+                var lastRows = getLastRows();
+                drawLineChart(lastRows);
+                setTimeout(showLastRows,10000);
+            }
+            
+            setTimeout(showLastRows, 3000);
+            
             return {
                 resentCallsLimit: AppSession.getResentCallsLimit,
                 resentCalls: resentCalls,
                 summaryRows: summaryRows,
-                lastHourCalls: AppDb.lastHourCalls
+                minutesLimit: AppSession.getMinutesLimit
             }
         }());
 
@@ -375,6 +528,12 @@ App.Client = (function(AppConst, AppSession, AppDb) {
         
         Template.filter_form.events({
 		
+            "keyup #txtContains": function(event) {
+                AppSession.setRegex($(event.target).val());
+                reSubResent();
+                reSubLast();
+            },
+            
 			"change #selVerb": function(event) {
 				var verb = $(event.target).val();
 				if (verb === "Any") {
@@ -382,6 +541,7 @@ App.Client = (function(AppConst, AppSession, AppDb) {
 				}
 				AppSession.setVerb(verb);
                 reSubResent();
+                reSubLast();
 			},
             
             "change #selLimit": function(event) {
@@ -389,24 +549,13 @@ App.Client = (function(AppConst, AppSession, AppDb) {
                 var limit = parseInt(limitStr);
                 AppSession.setResentCallsLimit(limit);
                 reSubResent();
+                reSubLast();
             },
 
             "change #chkErrors": function(event) {
                 AppSession.setFilterErrorsOnly(event.target.checked);
                 reSubResent();
-            },
-            
-            "keyup #txtContains": function(event) {
-                AppSession.setRegex($(event.target).val());
-                reSubResent();
-            },
-            
-            "submit #frmFilters": function(event) {
-                event.preventDefault();
-                AppSession.setRegex()
-                console.dir(App.Db.resentCalls());
             }
-            
         });
         
         
@@ -432,8 +581,8 @@ App.Server = (function(AppDb) {
             return AppDb.resentCalls(parms);
         });
 
-        Meteor.publish("calls-last-hours", function(hours, errorsOnly) {
-            return AppDb.lastHourCalls(hours, errorsOnly);
+        Meteor.publish("calls-last", function(parms) {
+            return AppDb.lastCalls(parms);
         });
     }
     
